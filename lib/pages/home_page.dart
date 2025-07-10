@@ -151,7 +151,7 @@ class _FineCheckHomePageState extends State<FineCheckHomePage> {
                   'test-task-${DateTime.now().millisecondsSinceEpoch}',
                   'checkForFines',
                   inputData: {
-                    'plate': 'mo9902',
+                    'plate': 'ma0001',
                     'vehicleType': 'L',
                   },
                 );
