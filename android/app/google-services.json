@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "53350523190",
+    "project_id": "finechecker-197b1",
+    "storage_bucket": "finechecker-197b1.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:53350523190:android:e671744937c0878a4fd397",
+        "android_client_info": {
+          "package_name": "com.example.fine_checker"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBQdd1CYUjTqdrFbrRaDHTOI8lKPP5ngV8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
