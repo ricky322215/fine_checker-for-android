@@ -5,7 +5,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 import '../models/fine_record.dart';
 
 class HistoryPage extends StatelessWidget {
-  const HistoryPage({Key? key}) : super(key: key);
+  const HistoryPage({super.key});
 
   @override
   Widget build(BuildContext context) {

@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
 import 'package:workmanager/workmanager.dart';
 import 'package:hive/hive.dart';
-
 import '../models/fine_record.dart';
 import 'history_page.dart';
 
@@ -16,10 +14,9 @@ class FineCheckHomePage extends StatefulWidget {
 
 class _FineCheckHomePageState extends State<FineCheckHomePage> {
   final _plateController = TextEditingController();
-  String _vehicleType = '汽車';
-
+  String _vehicleType = '汽車'; // 預設汽車
   bool _isChecking = false;
-  List<String> _log = [];
+  final List<String> _log = [];
 
   @override
   void initState() {
@@ -71,15 +68,19 @@ class _FineCheckHomePageState extends State<FineCheckHomePage> {
 
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('plate', plate);
+    await prefs.setString('vehicleType', _vehicleType);
     await prefs.setBool('isChecking', true);
+
+    final vehicleCode = _vehicleType == '汽車' ? 'L' : 'C';
 
     await Workmanager().registerPeriodicTask(
       'fine_check_task',
       'checkForFines',
-      frequency: Duration(minutes: 16),
+      frequency: const Duration(minutes: 16),
       initialDelay: const Duration(seconds: 5),
       inputData: {
         'plate': plate,
+        'vehicleType': vehicleCode,
       },
       existingWorkPolicy: ExistingWorkPolicy.replace,
     );
@@ -89,6 +90,7 @@ class _FineCheckHomePageState extends State<FineCheckHomePage> {
       'checkForFines',
       inputData: {
         'plate': plate,
+        'vehicleType': vehicleCode,
       },
     );
 
@@ -122,11 +124,6 @@ class _FineCheckHomePageState extends State<FineCheckHomePage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('罰單檢測助手'),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-          ),
-        ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
@@ -138,7 +135,41 @@ class _FineCheckHomePageState extends State<FineCheckHomePage> {
               enabled: !_isChecking,
               decoration: const InputDecoration(labelText: '車牌號碼'),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 16),
+            const Text('車種選擇'),
+            Row(
+              children: [
+                Expanded(
+                  child: RadioListTile<String>(
+                    title: const Text('汽車'),
+                    value: '汽車',
+                    groupValue: _vehicleType,
+                    onChanged: _isChecking
+                        ? null
+                        : (value) {
+                            setState(() {
+                              _vehicleType = value!;
+                            });
+                          },
+                  ),
+                ),
+                Expanded(
+                  child: RadioListTile<String>(
+                    title: const Text('機車'),
+                    value: '機車',
+                    groupValue: _vehicleType,
+                    onChanged: _isChecking
+                        ? null
+                        : (value) {
+                            setState(() {
+                              _vehicleType = value!;
+                            });
+                          },
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
             ElevatedButton(
               onPressed: _isChecking ? _stopChecking : _startChecking,
               child: Text(_isChecking ? '停止檢測' : '開始檢測'),
@@ -157,7 +188,7 @@ class _FineCheckHomePageState extends State<FineCheckHomePage> {
                 );
                 print('🚀 已註冊背景測試任務 (5 秒後執行)');
               },
-              child: Text('背景罰單測試'),
+              child: const Text('背景罰單測試'),
             ),
             ElevatedButton(
               child: const Text('查看歷史罰單紀錄'),

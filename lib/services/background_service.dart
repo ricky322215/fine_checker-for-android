@@ -54,23 +54,29 @@ void callbackDispatcher() {
     );
 
     final plate = inputData?['plate'];
-    print('[Background] plate=$plate');
-    
+    final vehicleType = inputData?['vehicleType'] ?? 'L'; // 預設為汽車
+    print('[Background] plate=$plate, vehicleType=$vehicleType');
+
     // ✅ 限制檢查時間為早上 9:00 至晚上 22:00
     final now = DateTime.now();
     if (now.hour < 9 || now.hour >= 22) {
       print('[Background] ⚠️ 非檢測時間（目前時間 ${now.hour}:00），跳過本次任務');
       return Future.value(true);
     }
-    
-    if (plate is String) {
-      final hasNewFine = await checkForFine(plateNumber: plate);
 
-      if (hasNewFine) {
+    if (plate is String && vehicleType is String) {
+      final hasNewFine = await checkForFine(
+        plateNumber: plate,
+        vehicleType: vehicleType,
+      );
+
+      if (hasNewFine == null) {
+        await sendInvalidPlateNotification();
+      } else if (hasNewFine) {
         await sendFineNotification();
         await recordFineToHive(plate);
       } else {
-        await sendNoFineNotification(); // ✅ 無罰單通知（靜音）
+        await sendNoFineNotification();
       }
     }
 
@@ -108,15 +114,28 @@ Future<void> sendFineNotification() async {
 /// 發送「無罰單」通知（靜音）
 Future<void> sendNoFineNotification() async {
   final now = DateTime.now();
-  final formatter = DateFormat('yyyy-MM-dd HH:mm:ss');
-  final formattedTime = formatter.format(now);
+  final formattedTime = DateFormat('yyyy-MM-dd HH:mm:ss').format(now);
 
   await AwesomeNotifications().createNotification(
     content: NotificationContent(
       id: now.millisecondsSinceEpoch ~/ 1000,
-      channelKey: 'silent_channel', // 靜音頻道
+      channelKey: 'silent_channel',
       title: '✅ 沒有檢測到罰單',
       body: '背景任務於 $formattedTime 成功執行，沒有違規紀錄。',
+      notificationLayout: NotificationLayout.Default,
+      autoDismissible: true,
+    ),
+  );
+}
+
+/// 發送「車牌無效」通知（錯誤提示）
+Future<void> sendInvalidPlateNotification() async {
+  await AwesomeNotifications().createNotification(
+    content: NotificationContent(
+      id: DateTime.now().millisecondsSinceEpoch ~/ 1000,
+      channelKey: 'alert_channel',
+      title: '🚫 查詢失敗',
+      body: '查詢未跳轉到正確頁面，可能車牌未登記或輸入錯誤。',
       notificationLayout: NotificationLayout.Default,
       autoDismissible: true,
     ),

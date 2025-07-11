@@ -1,23 +1,27 @@
 import 'package:http/http.dart' as http;
 import 'package:html/parser.dart' show parse;
 
-Future<bool> checkForFine({
+/// 查詢罰單，根據 plateNumber 與車種（汽車 = 'L', 機車 = 'C'）
+/// 回傳 true = 有罰單, false = 無罰單, null = 查詢錯誤 (車牌錯誤或未跳轉)
+Future<bool?> checkForFine({
   required String plateNumber,
+  required String vehicleType, // 'L' 或 'C'
 }) async {
   final client = http.Client();
-  try {
-    final url = Uri.parse('https://www.fsm.gov.mo/webticket/Webform1.aspx?carClass=L&Lang=C');
 
-    // Step 1: GET 查詢頁，取得 __VIEWSTATE 等參數與 Cookie
+  try {
+    final url = Uri.parse('https://www.fsm.gov.mo/webticket/Webform1.aspx?carClass=$vehicleType&Lang=C');
+
+    // Step 1: 取得查詢頁 HTML 與 Cookie
     final getResp = await client.get(url, headers: {
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:114.0) Gecko/20100101 Firefox/114.0',
+      'User-Agent': 'Mozilla/5.0',
       'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-      'Accept-Language': 'zh-TW,zh;q=0.9,en-US;q=0.8,en;q=0.7',
+      'Accept-Language': 'zh-TW,zh;q=0.9',
     });
 
     if (getResp.statusCode != 200) {
       print('🔴 無法載入查詢頁面，HTTP ${getResp.statusCode}');
-      return false;
+      return null;
     }
 
     final document = parse(getResp.body);
@@ -30,23 +34,21 @@ Future<bool> checkForFine({
 
     if (viewState == null || viewStateGen == null || eventValidation == null) {
       print('🔴 無法取得 VIEWSTATE 或 EVENTVALIDATION');
-      return false;
+      return null;
     }
 
-    // 從 GET 回應中取得 cookie
     final cookies = getResp.headers['set-cookie'];
-    // 可能有多個 cookie，用分號或逗號分隔，這裡簡單取第一組
     final cookieHeader = cookies?.split(';').first ?? '';
 
-    // Step 2: POST 模擬表單送出查詢 (帶上 Cookie)
+    // Step 2: 模擬送出表單
     final postRequest = http.Request('POST', url)
       ..headers.addAll({
         'Content-Type': 'application/x-www-form-urlencoded',
         'Origin': 'https://www.fsm.gov.mo',
         'Referer': url.toString(),
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:114.0) Gecko/20100101 Firefox/114.0',
+        'User-Agent': 'Mozilla/5.0',
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-        'Accept-Language': 'zh-TW,zh;q=0.9,en-US;q=0.8,en;q=0.7',
+        'Accept-Language': 'zh-TW,zh;q=0.9',
         'Cookie': cookieHeader,
       })
       ..bodyFields = {
@@ -56,7 +58,7 @@ Future<bool> checkForFine({
         '__EVENTTARGET': '',
         '__EVENTARGUMENT': '',
         'Calculator': plateNumber,
-        'btnOk': '確\u3000定',  // 全形空格 U+3000
+        'btnOk': '確　定',
       };
 
     final streamedResp = await client.send(postRequest);
@@ -65,33 +67,35 @@ Future<bool> checkForFine({
     print('✅ 寄出表單內容：');
     postRequest.bodyFields.forEach((k, v) => print('  $k = $v'));
 
-    // 處理 302 重導向（若有）
+    // Step 2.5: 可能的 302 跳轉
     if (response.statusCode == 302) {
       final location = response.headers['location'];
       if (location != null) {
         final redirectUrl = location.startsWith('http')
             ? location
-            : 'https://www.fsm.gov.mo' + (location.startsWith('/') ? '' : '/') + location;
+            : 'https://www.fsm.gov.mo${location.startsWith('/') ? '' : '/'}$location';
         print('🔄 已跳轉至：$redirectUrl');
 
-        final redirectResp = await client.get(Uri.parse(redirectUrl), headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:114.0) Gecko/20100101 Firefox/114.0',
+        response = await client.get(Uri.parse(redirectUrl), headers: {
+          'User-Agent': 'Mozilla/5.0',
           'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-          'Accept-Language': 'zh-TW,zh;q=0.9,en-US;q=0.8,en;q=0.7',
+          'Accept-Language': 'zh-TW,zh;q=0.9',
           'Referer': url.toString(),
           'Cookie': cookieHeader,
         });
-        response = redirectResp;
       }
     }
 
-    if (response.request?.url.path.endsWith('default.aspx') == true) {
-      print('🔴 表單送出失敗，導回首頁(default.aspx)，可能是驗證錯誤');
-      return false;
+    // Step 2.6: 檢查是否跳轉到 WebForm7.aspx，否則可能是車牌無效
+    final finalPath = response.request?.url.path ?? '';
+    if (!finalPath.contains('WebForm7.aspx')) {
+      print('🟥 查詢未跳轉到 WebForm7.aspx，可能車牌輸入錯誤或未登記');
+      return null;
     }
 
-    // Step 3: 判斷罰單內容
+    // Step 3: 分析結果頁面
     final resultDoc = parse(response.body);
+
     final noTicketElement = resultDoc.querySelector('#lbNoTicket2');
     final text = noTicketElement?.text.trim();
 
@@ -101,13 +105,15 @@ Future<bool> checkForFine({
     if (text != null && text.contains('沒有違例紀錄')) {
       print('✅ 沒有罰單');
       return false;
-    } else {
-      print('❗ 最終確認：有罰單');
-      return true;
     }
+
+    // 若沒有上述訊息，判為有罰單
+    print('❗ 最終確認：有罰單');
+    return true;
+
   } catch (e) {
-    print('🔴 查詢罰單時發生錯誤: $e');
-    return false;
+    print('🔴 查詢罰單時發生例外錯誤: $e');
+    return null;
   } finally {
     client.close();
   }
