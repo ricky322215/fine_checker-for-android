@@ -1,16 +1,56 @@
-# fine_checker
+# 🚗 Fine Checker for Android
 
-A new Flutter project.
+一款針對澳門地區設計的 Android App，協助駕駛人自動查詢是否有交通違規罰單，並即時通知提醒，以免車主忘記處理罰單，產生過期罰款。
 
-## Getting Started
+---
 
-This project is a starting point for a Flutter application.
+## 🧩 功能介紹
 
-A few resources to get you started if this is your first Flutter project:
+- 📋 使用者輸入一次車牌號碼，即可永久儲存
+- 🔄 每 15 分鐘自動背景檢查罰單狀況
+- 🕘 只在每天 09:00–22:00 執行檢查，避免夜間打擾
+- 🚨 有新罰單即發送通知並自動停止檢查
+- ✅ 若無罰單，也會靜音發送背景執行成功訊息2232333人十十十  ｌｌｋ；。。。 ０ 
+- 🕓 可查看歷史罰單紀錄（本地儲存）
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+---
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+## 📱 使用方式
+
+1. 安裝 APK（之後會提供下載點）
+2. 輸入車牌號碼
+3. 選擇汽車還是摩托車
+3. 點選「開始檢測」
+4. 即可自動背景運作，無需手動查詢罰單
+
+---
+
+## 💡 技術架構
+
+- Flutter + Dart
+- Firebase Core（初始化背景服務）
+- Hive（儲存罰單紀錄）
+- WorkManager（背景任務管理）
+- Awesome Notifications（本地通知）
+- FSM 澳門治安警察局網站（作為查詢來源）
+
+---
+
+## ⚠️ 免責聲明
+
+本程式僅供學術與個人用途。  
+資料來源為[澳門治安警察局罰單查詢系統](https://www.fsm.gov.mo/webticket/)，  
+請勿用於商業用途，亦不保證查詢準確性或時效性。
+
+---
+
+## 📜 授權條款
+
+本專案採用 [MIT License](LICENSE)，歡迎自由使用與修改。
+
+---
+
+## 📬 聯絡方式
+
+作者：ricky322215  
+GitHub: [github.com/ricky322215](https://github.com/ricky322215)
